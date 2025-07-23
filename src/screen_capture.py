@@ -1,6 +1,6 @@
 """
-Screen capture functionality for real-time text extraction.
-Handles screen grabbing, cursor tracking, and capture scheduling.
+Screen capture functionality for AI-powered screenshot analysis.
+Handles screen grabbing, cursor tracking, and OpenAI analysis scheduling.
 """
 
 import threading
@@ -8,20 +8,26 @@ import time
 from .imports import *
 
 class ScreenCapture:
-    """Handles screen capture and cursor tracking operations."""
+    """Handles screen capture and OpenAI analysis operations."""
     
-    def __init__(self, gpu_processor, ui_components):
-        self.gpu_processor = gpu_processor
+    def __init__(self, openai_processor, ui_components):
+        self.openai_processor = openai_processor
         self.ui = ui_components
         self.last_capture = None
         self.processing = False
         self.capturing = False
+        self.analysis_mode = "general"  # general, text, ui, summary, custom
         
+    def set_analysis_mode(self, mode):
+        """Set the analysis mode for OpenAI processing."""
+        self.analysis_mode = mode
+        print(f"[MODE] Analysis mode set to: {mode}")
+    
     def start_capture_loop(self):
         """Start the automatic capture loop."""
         self.capturing = True
-        self.ui.update_status("Starting GPU-optimized capture...")
-        print("Started GPU-optimized automatic capture mode")
+        self.ui.update_status("Starting AI-powered screenshot analysis...")
+        print("Started AI-powered automatic capture mode")
         # Start the first capture after 2 seconds
         self.ui.root.after(2000, self.start_next_capture)
     
@@ -30,8 +36,8 @@ class ScreenCapture:
         if not self.processing:
             # Get current cursor position
             x, y = pyautogui.position()
-            print(f"\n[MANUAL] Manual GPU capture triggered at cursor position ({x}, {y}) - {time.strftime('%H:%M:%S')}")
-            self.capture_around_cursor(x, y)
+            print(f"\n[MANUAL] Manual AI analysis triggered at cursor position ({x}, {y}) - {time.strftime('%H:%M:%S')}")
+            self.capture_and_analyze(x, y)
         else:
             print(f"[BUSY] Still processing previous capture - {time.strftime('%H:%M:%S')}")
     
@@ -40,15 +46,15 @@ class ScreenCapture:
         if self.capturing and not self.processing:
             # Get current cursor position
             x, y = pyautogui.position()
-            print(f"\n[AUTO] Starting GPU-optimized capture at cursor position ({x}, {y}) - {time.strftime('%H:%M:%S')}")
-            self.capture_around_cursor(x, y)
+            print(f"\n[AUTO] Starting AI analysis at cursor position ({x}, {y}) - {time.strftime('%H:%M:%S')}")
+            self.capture_and_analyze(x, y)
         elif self.processing:
-            print(f"[WAIT] Still processing - will retry in 2 seconds - {time.strftime('%H:%M:%S')}")
-            # Retry in 2 seconds if still processing
-            self.ui.root.after(2000, self.start_next_capture)
+            print(f"[WAIT] Still processing - will retry in 5 seconds - {time.strftime('%H:%M:%S')}")
+            # Retry in 5 seconds if still processing (longer for AI analysis)
+            self.ui.root.after(5000, self.start_next_capture)
     
-    def capture_around_cursor(self, cursor_x, cursor_y):
-        """Capture area around cursor and extract text."""
+    def capture_and_analyze(self, cursor_x, cursor_y):
+        """Capture area around cursor and analyze with AI."""
         if self.processing:
             return
             
@@ -60,7 +66,7 @@ class ScreenCapture:
         thread.start()
     
     def _capture_and_process(self, cursor_x, cursor_y):
-        """Capture and process entire screen in background thread with GPU acceleration."""
+        """Capture and process entire screen in background thread with AI analysis."""
         try:
             # Capture entire screen
             img = ImageGrab.grab()
@@ -74,13 +80,8 @@ class ScreenCapture:
             
             print(f"[SUCCESS] Captured entire screen - Image size: {img.size}")
             
-            # GPU-accelerated preprocessing
-            if CV2_AVAILABLE:
-                print("Applying GPU-accelerated preprocessing...")
-                img = self.gpu_processor.preprocess_image_gpu(img)
-            
-            # Extract text from the image
-            self._process_text_extraction(img)
+            # AI-powered analysis
+            self._process_ai_analysis(img)
             
         except Exception as e:
             error_msg = str(e)
@@ -89,54 +90,76 @@ class ScreenCapture:
         finally:
             self.processing = False
     
-    def _process_text_extraction(self, img):
-        """Process text extraction and update UI."""
+    def _process_ai_analysis(self, img):
+        """Process AI analysis and update UI."""
         try:
-            self.ui.root.after(0, lambda: self.ui.update_status("GPU-accelerated text extraction..."))
+            self.ui.root.after(0, lambda: self.ui.update_status("AI analyzing screenshot..."))
             
-            # Extract text using GPU processor
-            text_lines = self.gpu_processor.extract_text_gpu(img)
+            # Analyze screenshot based on current mode
+            if self.analysis_mode == "text":
+                response = self.openai_processor.extract_text(img)
+            elif self.analysis_mode == "ui":
+                response = self.openai_processor.describe_ui(img)
+            elif self.analysis_mode == "summary":
+                response = self.openai_processor.summarize_content(img)
+            else:  # general
+                response = self.openai_processor.analyze_screenshot(img)
             
-            # Display text on the overlay
-            self.ui.root.after(0, lambda: self.display_text(text_lines))
+            # Display AI response on the overlay
+            self.ui.root.after(0, lambda: self.display_analysis(response))
             
             # Update status
-            self.ui.root.after(0, lambda: self.ui.update_status(f"GPU: Found {len(text_lines)} text lines"))
+            analysis_type = self.analysis_mode.capitalize()
+            self.ui.root.after(0, lambda: self.ui.update_status(f"AI {analysis_type} analysis complete"))
             
-            print(f"[COMPLETE] GPU OCR processing finished - starting next capture in 2 seconds")
-            self.ui.root.after(0, lambda: self.ui.update_status("GPU OCR complete - next capture in 2s"))
-            # Schedule next automatic capture in 2 seconds
-            self.ui.root.after(2000, self.start_next_capture)
+            print(f"[COMPLETE] AI analysis finished - starting next capture in 5 seconds")
+            
+            # Schedule next automatic capture in 5 seconds (longer for AI processing)
+            self.ui.root.after(5000, self.start_next_capture)
             
         except Exception as e:
             error_msg = str(e)
-            print(f"[ERROR] GPU OCR error: {error_msg}")
-            self.ui.root.after(0, lambda: self.ui.update_status(f"GPU OCR Error: {error_msg}"))
-            self.ui.root.after(0, lambda: self.display_text(["Error extracting text"]))
+            print(f"[ERROR] AI analysis error: {error_msg}")
+            self.ui.root.after(0, lambda: self.ui.update_status(f"AI Error: {error_msg}"))
+            self.ui.root.after(0, lambda: self.display_analysis(f"Error: {error_msg}"))
             
-            print(f"[COMPLETE] GPU OCR processing finished - starting next capture in 2 seconds")
-            self.ui.root.after(0, lambda: self.ui.update_status("GPU OCR complete - next capture in 2s"))
-            # Schedule next automatic capture in 2 seconds even if OCR failed
-            self.ui.root.after(2000, self.start_next_capture)
+            print(f"[COMPLETE] AI analysis finished - starting next capture in 5 seconds")
+            # Schedule next automatic capture in 5 seconds even if analysis failed
+            self.ui.root.after(5000, self.start_next_capture)
     
-    def display_text(self, text_list):
-        """Display extracted text on the overlay with adaptive sizing."""
+    def display_analysis(self, analysis_text):
+        """Display AI analysis on the overlay with adaptive sizing."""
         # Clear previous text
         self.ui.clear_text()
     
-        # Add new text
-        if text_list:
-            display_text = "\n".join(text_list)
-            print("[display_text]", display_text)
-            self.ui.add_text(display_text)
+        # Add new analysis
+        if analysis_text:
+            print("[AI Analysis]", analysis_text[:200] + "..." if len(analysis_text) > 200 else analysis_text)
+            self.ui.add_text(analysis_text)
             
             # Calculate required size based on text content
-            new_width, new_height = self.ui.calculate_window_size(text_list)
+            text_lines = analysis_text.split('\n')
+            new_width, new_height = self.ui.calculate_window_size(text_lines)
             self.ui.resize_window(new_width, new_height)
         else:
-            self.ui.add_text("No text found around cursor")
+            self.ui.add_text("No analysis available")
             # Reset to minimum size if no text
             self.ui.resize_window(self.ui.min_width, self.ui.min_height)
+    
+    def custom_analysis(self, custom_prompt):
+        """Perform custom analysis with user-provided prompt."""
+        if self.last_capture and self.last_capture['image']:
+            try:
+                self.ui.update_status("Running custom AI analysis...")
+                response = self.openai_processor.custom_analysis(self.last_capture['image'], custom_prompt)
+                self.display_analysis(response)
+                self.ui.update_status("Custom AI analysis complete")
+            except Exception as e:
+                error_msg = f"Custom analysis error: {str(e)}"
+                self.ui.update_status(error_msg)
+                self.display_analysis(error_msg)
+        else:
+            self.ui.update_status("No screenshot available for analysis")
     
     def get_last_capture(self):
         """Get the last captured screen image."""

@@ -1,5 +1,5 @@
 """
-Import management and library detection for GPU-optimized OCR.
+Import management and library detection for AI-powered screenshot analysis.
 Handles conditional imports and provides fallbacks for missing libraries.
 """
 
@@ -15,22 +15,33 @@ import io
 import os
 import sys
 
-# Try to import OCR libraries with fallbacks
+# Load environment variables from .env file
 try:
-    import pytesseract
-    OCR_AVAILABLE = True
-    print("✓ pytesseract available")
+    from dotenv import load_dotenv
+    load_dotenv()
+    DOTENV_AVAILABLE = True
+    print("✓ Environment variables loaded from .env file")
 except ImportError:
-    OCR_AVAILABLE = False
-    print("✗ pytesseract not available")
+    DOTENV_AVAILABLE = False
+    print("⚠ python-dotenv not available - using system environment variables only")
 
+# Try to import OpenAI
 try:
-    import easyocr
-    EASYOCR_AVAILABLE = True
-    print("✓ easyocr available")
+    import openai
+    OPENAI_AVAILABLE = True
+    print("✓ OpenAI library available")
 except ImportError:
-    EASYOCR_AVAILABLE = False
-    print("✗ easyocr not available")
+    OPENAI_AVAILABLE = False
+    print("✗ OpenAI library not available - please install: pip install openai")
+
+# Try to import requests for HTTP calls
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+    print("✓ requests library available")
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    print("✗ requests library not available")
 
 try:
     import numpy as np
@@ -40,40 +51,28 @@ except ImportError:
     NUMPY_AVAILABLE = False
     print("✗ numpy not available")
 
-# GPU-optimized imports
-try:
-    import torch
-    TORCH_AVAILABLE = True
-    print("✓ PyTorch available")
-    if torch.cuda.is_available():
-        print(f"✓ CUDA available - GPU: {torch.cuda.get_device_name(0)}")
-        DEVICE = torch.device('cuda')
-    else:
-        print("⚠ CUDA not available, using CPU")
-        DEVICE = torch.device('cpu')
-except ImportError:
-    TORCH_AVAILABLE = False
-    print("✗ PyTorch not available")
-    DEVICE = None
-
+# Basic image processing with OpenCV (for optional preprocessing)
 try:
     import cv2
     CV2_AVAILABLE = True
-    print("✓ OpenCV available")
-    # Check if OpenCV was compiled with CUDA support
-    if hasattr(cv2, 'cuda') and cv2.cuda.getCudaEnabledDeviceCount() > 0:
-        print("✓ OpenCV CUDA support available")
-        CV2_CUDA_AVAILABLE = True
-    else:
-        print("⚠ OpenCV CUDA support not available")
-        CV2_CUDA_AVAILABLE = False
+    print("✓ OpenCV available for image preprocessing")
 except ImportError:
     CV2_AVAILABLE = False
-    CV2_CUDA_AVAILABLE = False
     print("✗ OpenCV not available")
 
+# Check for OpenAI API key
+API_KEY_AVAILABLE = bool(os.getenv('OPENAI_API_KEY'))
+if API_KEY_AVAILABLE:
+    print("✓ OpenAI API key found in environment")
+else:
+    print("⚠ OpenAI API key not found - set OPENAI_API_KEY in .env file or environment variable")
+
 # Configuration constants
-TESSERACT_PATH = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-DEFAULT_WINDOW_SIZE = (400, 500)
-MIN_WINDOW_SIZE = (300, 200)
-MAX_WINDOW_SIZE = (800, 1000) 
+DEFAULT_WINDOW_SIZE = (450, 600)
+MIN_WINDOW_SIZE = (350, 300)
+MAX_WINDOW_SIZE = (800, 1200)
+
+# OpenAI Configuration (can be overridden by .env file)
+DEFAULT_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o')
+MAX_TOKENS = int(os.getenv('OPENAI_MAX_TOKENS', '500'))
+TEMPERATURE = float(os.getenv('OPENAI_TEMPERATURE', '0.7')) 

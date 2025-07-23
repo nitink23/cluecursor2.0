@@ -1,47 +1,48 @@
 """
-Main application class for GPU-optimized screen capture OCR.
+Main application class for AI-powered screenshot analysis.
 Orchestrates all components and manages the application lifecycle.
 """
 
 import tkinter as tk
+import os
 from .imports import *
-from .gpu_processor import GPUProcessor
+from .openai_processor import OpenAIProcessor
 from .ui_components import UIComponents
 from .screen_capture import ScreenCapture
 from .cursor_tracker import CursorTracker
 
-class GPUScreenCaptureApp:
-    """Main application class for GPU-optimized screen capture OCR."""
+class AIScreenshotAnalyzer:
+    """Main application class for AI-powered screenshot analysis."""
     
     def __init__(self):
         self.root = tk.Tk()
         self.setup_window()
         
         # Initialize components
-        self.gpu_processor = GPUProcessor()
+        self.openai_processor = OpenAIProcessor()
         self.ui = UIComponents(self.root, *DEFAULT_WINDOW_SIZE)
         self.cursor_tracker = CursorTracker(self.root, self.ui)
-        self.screen_capture = ScreenCapture(self.gpu_processor, self.ui)
+        self.screen_capture = ScreenCapture(self.openai_processor, self.ui)
         
         # Setup callbacks and bindings
         self.setup_callbacks()
         self.setup_bindings()
         
-        # Update UI with GPU status
-        self.update_gpu_status()
+        # Update UI with AI status
+        self.update_ai_status()
         
         # Start components
         self.cursor_tracker.start_tracking()
         
-        # Auto-start capture after 2 seconds
-        self.root.after(2000, self.screen_capture.start_capture_loop)
+        # Auto-start capture after 3 seconds (longer for AI setup)
+        self.root.after(3000, self.screen_capture.start_capture_loop)
     
     def setup_window(self):
         """Setup the main window properties."""
-        self.root.title("GPU-Optimized Screen Capture Overlay")
+        self.root.title("AI Screenshot Analyzer")
         
         # Make the window transparent and always on top
-        self.root.attributes('-alpha', 0.85)
+        self.root.attributes('-alpha', 0.90)
         self.root.attributes('-topmost', True)
         
         # Remove window decorations
@@ -51,50 +52,73 @@ class GPUScreenCaptureApp:
         """Setup UI callbacks."""
         self.ui.set_capture_callback(self.screen_capture.toggle_capture)
         self.ui.set_close_callback(self.root.destroy)
+        self.ui.set_mode_change_callback(self.on_analysis_mode_change)
     
     def setup_bindings(self):
         """Setup keyboard bindings."""
         # Bind escape key to close
         self.root.bind('<Escape>', lambda e: self.root.destroy())
         
-        # Bind Ctrl+C to toggle capture
-        self.root.bind('<Control-c>', lambda e: self.screen_capture.toggle_capture())
+        # Bind Ctrl+A to toggle capture
+        self.root.bind('<Control-a>', lambda e: self.screen_capture.toggle_capture())
+        
+        # Bind Ctrl+M to cycle analysis modes
+        self.root.bind('<Control-m>', lambda e: self.ui.toggle_analysis_mode())
+        
+        # Bind Ctrl+P for custom prompt
+        self.root.bind('<Control-p>', lambda e: self.custom_analysis_prompt())
     
-    def update_gpu_status(self):
-        """Update UI with current GPU and OCR status."""
-        gpu_status = self.gpu_processor.get_gpu_status()
+    def on_analysis_mode_change(self, mode):
+        """Handle analysis mode changes."""
+        self.screen_capture.set_analysis_mode(mode)
+        self.ui.update_status(f"Analysis mode: {mode.capitalize()}")
+    
+    def custom_analysis_prompt(self):
+        """Handle custom analysis prompt."""
+        prompt = self.ui.add_custom_prompt_dialog()
+        if prompt:
+            self.screen_capture.custom_analysis(prompt)
+    
+    def update_ai_status(self):
+        """Update UI with current AI status."""
+        ai_status = self.openai_processor.get_status()
         
-        # Determine GPU status text
-        if gpu_status['cuda_available']:
-            gpu_text = "GPU"
-            ocr_method = "easyocr" if gpu_status['easyocr_gpu'] else "pytesseract" if gpu_status['tesseract_available'] else "None"
+        # Update AI status in UI
+        if ai_status['api_available']:
+            model_display = ai_status['model'].replace('-preview', '')
+            self.ui.update_ai_label("Connected", model_display)
         else:
-            gpu_text = "CPU"
-            ocr_method = "easyocr" if EASYOCR_AVAILABLE else "pytesseract" if OCR_AVAILABLE else "None"
-        
-        self.ui.update_ocr_label(gpu_text, ocr_method)
+            self.ui.update_ai_label("Error", None)
         
         # Print status summary
-        print("\n=== GPU Status Summary ===")
-        print(f"PyTorch: {'✓' if gpu_status['torch_available'] else '✗'}")
-        print(f"CUDA: {'✓' if gpu_status['cuda_available'] else '✗'}")
-        if gpu_status['cuda_available']:
-            print(f"GPU: {gpu_status['gpu_name']}")
-            print(f"Memory: {gpu_status['gpu_memory']}")
-        print(f"OpenCV CUDA: {'✓' if gpu_status['opencv_cuda'] else '✗'}")
-        print(f"EasyOCR GPU: {'✓' if gpu_status['easyocr_gpu'] else '✗'}")
-        print(f"Tesseract: {'✓' if gpu_status['tesseract_available'] else '✗'}")
+        print("\n=== AI Status Summary ===")
+        print(f"OpenAI API: {'✓' if ai_status['api_available'] else '✗'}")
+        if ai_status['api_available']:
+            print(f"Model: {ai_status['model']}")
+            print(f"Models Accessible: {'✓' if ai_status.get('models_accessible', False) else '✗'}")
+        else:
+            print(f"Error: {ai_status.get('error', 'Unknown error')}")
         print("========================\n")
     
     def run(self):
         """Start the application main loop."""
-        print("🚀 GPU-Optimized Screen Capture OCR Started!")
+        print("🤖 AI-Powered Screenshot Analyzer Started!")
         print("Controls:")
         print("  - ESC: Close application")
-        print("  - Ctrl+C: Manual capture")
-        print("  - Click 'Manual Capture' button")
-        print("  - Automatic capture every 2 seconds")
+        print("  - Ctrl+A: Manual analysis")
+        print("  - Ctrl+M: Change analysis mode")
+        print("  - Ctrl+P: Custom analysis prompt")
+        print("  - Click 'Analyze Now' button")
+        print("  - Click 'Mode' button to cycle modes")
+        print("  - Automatic analysis every 5 seconds")
         print()
+        
+        # Check for OpenAI API key
+        if not os.getenv('OPENAI_API_KEY'):
+            print("⚠️  Warning: OPENAI_API_KEY environment variable not set!")
+            print("   Please set your OpenAI API key as an environment variable.")
+            print("   Example: export OPENAI_API_KEY='your-api-key-here'")
+            print()
         
         self.root.mainloop()
     
@@ -110,12 +134,14 @@ def main():
     pyautogui.FAILSAFE = False
     
     try:
-        app = GPUScreenCaptureApp()
+        app = AIScreenshotAnalyzer()
         app.run()
     except KeyboardInterrupt:
         print("\nApplication interrupted by user.")
     except Exception as e:
         print(f"Application error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         if 'app' in locals():
             app.cleanup()
